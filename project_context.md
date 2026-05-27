@@ -1,6 +1,6 @@
 # Ragnify — Technical & Architectural Project Context
 
-Ragnify (formerly BankRAG) is a premium, enterprise-grade **Document Intelligence & Retrieval-Augmented Generation (RAG)** platform. It is engineered for professionals across banking, government, legal, enterprise, and all industries who require high-precision, zero-hallucination analysis of complex documents.
+Ragnify is a premium, enterprise-grade **Document Intelligence & Retrieval-Augmented Generation (RAG)** platform. It is engineered for professionals across government, legal, enterprise, and all industries who require high-precision, zero-hallucination analysis of complex documents.
 
 This context file provides a comprehensive overview of Ragnify's architecture, pipelines, data flows, and code patterns to enable developers and AI systems to immediately understand, maintain, and extend the project.
 
@@ -239,7 +239,7 @@ When interacting with this codebase as an AI assistant, observe these patterns:
 ## 8. Changelog
 
 ### v2.0.0 — Ragnify (May 2025)
-- **Renamed** from BankRAG to **Ragnify** across all files
+- **Rebranded** to **Ragnify** across all files
 - **Crawler Enhancement:** Reduced blocked domains (LinkedIn, GitHub now crawled), increased text limit from 8K→15K chars per URL, added linked PDF download/extraction, retry logic with backoff, JSON/XML parsing
 - **Source Attribution:** Crawled content labeled with originating filename, mandatory `📎 Sources Used` footer in every answer, document name included in LLM prompt
 - **Config Tuning:** MAX_CRAWL_URLS 30→50, CRAWL_TIMEOUT 10→15s, MAX_CRAWL_WORKERS 8→10, MAX_TOKENS_ANSWER 2048→4096

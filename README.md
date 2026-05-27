@@ -1,8 +1,8 @@
-# 🏦 BankRAG — Banking Document Intelligence Platform
+# 🚀 Ragnify — AI Document Intelligence Platform
 
 > **AI-powered RAG system for banking documents. Upload PDFs, Word docs, images — get instant, accurate answers with zero hallucination.**
 
-![BankRAG](https://img.shields.io/badge/Powered%20by-GPT--4o%20%2B%20FAISS-blue?style=for-the-badge)
+![Ragnify](https://img.shields.io/badge/Powered%20by-GPT--4o%20%2B%20FAISS-blue?style=for-the-badge)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-green?style=for-the-badge)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?style=for-the-badge)
 
@@ -19,7 +19,7 @@
 | 🛡️ **Zero Hallucination** | Strictly grounded — no external knowledge used |
 | ⚡ **Real-time Streaming** | Token-by-token streaming via Server-Sent Events |
 | 📍 **Source Citations** | Every answer includes page/URL citations |
-| 🏦 **Banking-grade UI** | Premium glassmorphism interface |
+| 🚀 **Premium UI** | Premium glassmorphism interface |
 
 ---
 
@@ -64,7 +64,7 @@ Upload (PDF/DOCX/IMG)
 ## 📁 Project Structure
 
 ```
-BankRAG/
+Ragnify/
 ├── backend/
 │   ├── main.py          ← FastAPI server (routes, SSE streaming)
 │   ├── rag_engine.py    ← Full RAG pipeline orchestrator
@@ -76,7 +76,7 @@ BankRAG/
 │   ├── config.py        ← Settings & API keys
 │   └── requirements.txt
 ├── frontend/
-│   ├── index.html       ← Premium banking UI
+│   ├── index.html       ← Premium AI assistant UI
 │   ├── style.css        ← Design system (glassmorphism)
 │   └── app.js           ← Chat + upload + streaming logic
 ├── data/indexes/        ← Per-document FAISS indexes (auto-created)
@@ -130,7 +130,7 @@ MAX_CRAWL_URLS  = 30     # max URLs to crawl per doc
 ## ⚙️ How It Works
 
 1. **You upload** a PDF/DOCX/image
-2. **BankRAG parses** all text content (by page for PDFs)
+2. **Ragnify parses** all text content (by page for PDFs)
 3. **Hyperlinks are extracted** from the document
 4. **URLs are crawled** concurrently — content extracted from each
 5. **All content is chunked** into 500-token segments with overlap
@@ -153,15 +153,15 @@ The system uses a strict system prompt that instructs GPT-4o:
 
 ---
 
-## 🏦 Banking Use Cases
+## 🚀 Use Cases
 
-- **Loan document analysis** — extract terms, rates, conditions
+- **Contract analysis** — extract terms, conditions, and obligations
 - **Regulatory compliance** — find specific clauses in policy docs
-- **Account statements** — summarize transactions
+- **Research papers** — summarize findings and extract key data
 - **Insurance policies** — locate coverage details
 - **Annual reports** — extract financial figures
 - **Legal agreements** — identify key obligations
 
 ---
 
-*Built with ❤️ for banking professionals who need instant, accurate document intelligence.*
+*Built with ❤️ for professionals who need instant, accurate document intelligence.*

@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: ragnify-bankrag
+    name: ragnify
     runtime: python
     rootDir: backend
     buildCommand: pip install -r requirements.txt

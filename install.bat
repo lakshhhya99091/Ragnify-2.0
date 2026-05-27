@@ -1,9 +1,9 @@
 @echo off
-title BankRAG — Install Dependencies
+title Ragnify — Install Dependencies
 color 0B
 
 echo.
-echo  BankRAG — Installing Dependencies
+echo  Ragnify — Installing Dependencies
 echo  ===================================
 echo.
 
@@ -27,6 +27,6 @@ pip install numpy==1.26.4 aiofiles==23.2.1 pydantic==2.7.1
 echo.
 echo [SUCCESS] All dependencies installed!
 echo.
-echo You can now run BankRAG by double-clicking run.bat
+echo You can now run Ragnify by double-clicking run.bat
 echo.
 pause

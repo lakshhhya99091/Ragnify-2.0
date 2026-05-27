@@ -1,10 +1,10 @@
 @echo off
-title BankRAG — Banking Document Intelligence
+title Ragnify — AI Document Intelligence
 color 0B
 
 echo.
 echo  ╔══════════════════════════════════════════════════════════════╗
-echo  ║          BankRAG — Banking Document Intelligence            ║
+echo  ║          Ragnify — AI Document Intelligence                 ║
 echo  ║              Powered by GPT-4o + FAISS + RAG               ║
 echo  ╚══════════════════════════════════════════════════════════════╝
 echo.
@@ -32,10 +32,10 @@ if errorlevel 1 (
 )
 
 echo.
-echo [3/3] Starting BankRAG server...
+echo [3/3] Starting Ragnify server...
 echo.
 echo  ┌──────────────────────────────────────────────────────────────┐
-echo  │  BankRAG is starting at: http://localhost:8000              │
+echo  │  Ragnify is starting at: http://localhost:8000              │
 echo  │  Open your browser to: http://localhost:8000                │
 echo  │                                                              │
 echo  │  Press Ctrl+C to stop the server                           │
