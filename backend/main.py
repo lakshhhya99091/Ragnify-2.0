@@ -1,19 +1,15 @@
 """
 Ragnify FastAPI Backend
 """
-import asyncio
-import json
 import logging
 import os
-import shutil
 import uuid
 from pathlib import Path
-from typing import Optional
 
 import aiofiles
 from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -61,7 +57,7 @@ class QuestionRequest(BaseModel):
 
 
 class SettingsRequest(BaseModel):
-    openai_api_key: str
+    gemini_api_key: str
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -89,7 +85,7 @@ async def update_settings(req: SettingsRequest):
     """Update Gemini API key at runtime and persist to .env file."""
     import config as cfg_module
 
-    new_key = req.openai_api_key.strip()  # field reused for Gemini key
+    new_key = req.gemini_api_key.strip()
     if not new_key.startswith("AIza") and not new_key.startswith("sk-"):
         raise HTTPException(
             status_code=400,
@@ -99,12 +95,11 @@ async def update_settings(req: SettingsRequest):
     # Update runtime config
     cfg_module.GEMINI_API_KEY = new_key
 
-    # Save to .env file on the persistent disk (DATA_DIR parent = /data on Render)
-    from config import DATA_DIR
-    env_dir = os.path.dirname(DATA_DIR)  # /data on Render, <project>/data locally
-    os.makedirs(env_dir, exist_ok=True)
-    env_path = os.path.join(env_dir, ".env")
-    with open(env_path, "w") as f:
+    # Persist to the SAME .env file that config.py reads on startup, otherwise the
+    # updated key would be silently lost on the next restart.
+    from config import ENV_FILE
+    os.makedirs(os.path.dirname(ENV_FILE), exist_ok=True)
+    with open(ENV_FILE, "w") as f:
         if new_key.startswith("AIza"):
             f.write(f'GEMINI_API_KEY="{new_key}"\n')
         else:

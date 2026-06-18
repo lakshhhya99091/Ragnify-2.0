@@ -3,20 +3,25 @@ Ragnify Configuration — Gemini Edition
 """
 import os
 
+# ── Project paths ───────────────────────────────────────────────────────────────
+# Defined up-front so the .env loader (below) and the /settings writer (main.py)
+# agree on exactly one location. Previously the key was saved to a different path
+# than the one read on startup, so an updated key was silently lost on restart.
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ENV_FILE = os.path.join(BASE_DIR, ".env")
+
 # ── Gemini API ────────────────────────────────────────────────────────────────
 # Priority: Environment variable > .env file > hardcoded key
 _env_key = os.environ.get("GEMINI_API_KEY", "")
 
 # Try to load from .env file if exists
-if not _env_key:
-    _env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
-    if os.path.exists(_env_path):
-        with open(_env_path) as _f:
-            for _line in _f:
-                _line = _line.strip()
-                if _line.startswith("GEMINI_API_KEY="):
-                    _env_key = _line.split("=", 1)[1].strip().strip('"').strip("'")
-                    break
+if not _env_key and os.path.exists(ENV_FILE):
+    with open(ENV_FILE) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line.startswith("GEMINI_API_KEY="):
+                _env_key = _line.split("=", 1)[1].strip().strip('"').strip("'")
+                break
 
 GEMINI_API_KEY = _env_key or "AIzaSyAD8q7stG0X7lYeZipZDFZ6eXJJwEQhMj8"
 
@@ -43,7 +48,7 @@ MAX_CRAWL_WORKERS = 10      # Concurrent crawl workers (increased from 8)
 # ── Paths ─────────────────────────────────────────────────────────────────────
 # Prefer environment variables (set by render.yaml for Render deployment with disk).
 # Falls back to local directory layout for free tier / development.
-BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# (BASE_DIR is defined at the top of this file alongside ENV_FILE.)
 _default_data   = os.path.join(BASE_DIR, "data", "indexes")
 _default_upload = os.path.join(BASE_DIR, "uploads")
 

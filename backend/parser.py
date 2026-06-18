@@ -15,7 +15,7 @@ import os
 import re
 import logging
 from pathlib import Path
-from typing import List, Tuple, Dict, Optional
+from typing import List, Tuple, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +172,9 @@ def parse_docx(file_path: str) -> Dict:
         if table_text.strip():
             label = f"Table {t_idx} in Document"
             tables_by_source.append((label, table_text))
-            full_text_parts.append(table_text)
+            # NOTE: do NOT also append to full_text_parts. parse_document() merges
+            # every table from `tables` into text_by_source as its own labeled
+            # section, so adding it here too would embed the table content twice.
 
     # Hyperlinks from relationships
     for rel in doc.part.rels.values():

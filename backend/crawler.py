@@ -4,10 +4,8 @@ Returns cleaned text chunks tagged with their source URL.
 Enhanced: PDF download support, retry logic, broader domain coverage.
 """
 import asyncio
-import io
 import logging
 import re
-import tempfile
 from typing import List, Tuple, Optional
 from urllib.parse import urlparse
 
@@ -61,7 +59,9 @@ def _should_skip(url: str) -> bool:
     """Return True if URL should not be crawled."""
     try:
         parsed = urlparse(url)
-        domain = parsed.netloc.lower().lstrip("www.")
+        # NOTE: use removeprefix, not lstrip("www.") — lstrip strips any leading
+        # 'w'/'.' characters, which mangles domains like "web.x.com" -> "eb.x.com".
+        domain = parsed.netloc.lower().removeprefix("www.")
 
         # Check exact domain and parent domain
         if domain in SKIP_DOMAINS:

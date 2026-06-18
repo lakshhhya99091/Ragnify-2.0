@@ -27,8 +27,8 @@ Traditional RAG systems often suffer from three critical failures in enterprise 
 Below is the repository structure showing the modular separation of the backend RAG pipeline and frontend UI.
 
 ```
-d:\BankRAG
-└── BankRAG
+d:\Ragnify Final\Ragnify 2.0
+└── Ragnify2.0
     ├── backend/
     │   ├── main.py            # FastAPI Application entry-point, CORS, static mounts, and API routes.
     │   ├── config.py          # Unified settings (API keys, models, chunk parameters, prompt templates).
@@ -203,11 +203,11 @@ Ensure you have **Python 3.10+** and **Tesseract OCR** (for image text scanning)
 ### 2. Install Dependencies
 Run the following command inside the backend folder to install the required libraries:
 ```bash
-pip install -r BankRAG/backend/requirements.txt
+pip install -r backend/requirements.txt
 ```
 
 ### 3. Provide Gemini API Key
-Create a `.env` file inside the `BankRAG` folder or configure your terminal environment:
+Create a `.env` file inside the project root (`Ragnify2.0`) folder or configure your terminal environment:
 ```env
 GEMINI_API_KEY="AIzaSy..."
 ```
@@ -215,13 +215,13 @@ GEMINI_API_KEY="AIzaSy..."
 ### 4. Run the Server
 Launch the backend server using `uvicorn`:
 ```bash
-python BankRAG/backend/main.py
+python backend/main.py
 ```
 The server will start on **`http://localhost:8000`**. You can access the UI by opening this address in your browser.
 
 ### 5. Run Verification Tests
-* Test document upload and indexing: `python BankRAG/backend/test_upload.py`
-* Test streaming Q&A retrieval: `python BankRAG/backend/test_chat.py`
+* Test document upload and indexing: `python backend/test_upload.py`
+* Test streaming Q&A retrieval: `python backend/test_chat.py`
 
 ---
 

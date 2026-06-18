@@ -11,12 +11,12 @@ from typing import AsyncGenerator, Dict, Any, List, Optional
 
 from google import genai
 
-from config import GEMINI_API_KEY, CHAT_MODEL, MAX_TOKENS_ANSWER, SYSTEM_PROMPT, TOP_K, DATA_DIR
+from config import SYSTEM_PROMPT, TOP_K, DATA_DIR
 from parser import parse_document
 from crawler import crawl_urls
 from chunker import chunk_all_sources
 from embedder import embed_texts, embed_query
-from vector_store import build_index, search, index_exists, delete_index, list_indexes
+from vector_store import build_index, search, index_exists, list_indexes
 
 logger = logging.getLogger(__name__)
 
@@ -26,13 +26,19 @@ _REGISTRY_FILE = os.path.join(DATA_DIR, ".registry.json")
 
 
 def _load_registry():
-    global _doc_registry
+    """Load the registry from disk into the EXISTING dict (mutating in place,
+    not rebinding) so references held elsewhere — e.g. main.py's upload handler —
+    stay valid, then auto-discover any on-disk indexes not yet tracked.
+    Called once at startup."""
+    data = {}
     if os.path.exists(_REGISTRY_FILE):
         try:
             with open(_REGISTRY_FILE, "r", encoding="utf-8") as f:
-                _doc_registry = json.load(f)
+                data = json.load(f)
         except Exception:
-            _doc_registry = {}
+            data = {}
+    _doc_registry.clear()
+    _doc_registry.update(data)
     # Also auto-discover indexes not in registry
     for doc_id in list_indexes():
         if doc_id not in _doc_registry:
@@ -51,7 +57,44 @@ def _save_registry():
         json.dump(_doc_registry, f, ensure_ascii=False, indent=2)
 
 
+# Statuses that mean ingestion was still in flight (no finished index yet).
+_IN_PROGRESS_STATES = {
+    "uploading", "processing", "parsing", "crawling", "embedding", "indexing",
+}
+
+
+def _cleanup_orphaned_entries():
+    """
+    Remove zombie registry entries left behind when the server was stopped or
+    crashed mid-ingestion. After a restart there is no background task driving
+    these docs, so any entry still stuck in an in-progress state is dead:
+      - if a finished FAISS index exists for it, promote it to 'ready';
+      - otherwise drop it (this covers 'pending_*' placeholder tokens and any
+        document whose processing was interrupted before it was indexed).
+
+    Runs ONCE at startup only — never during a normal /documents poll — so it
+    can never race with a document that is legitimately being processed now.
+    """
+    removed, recovered = [], []
+    for doc_id, info in list(_doc_registry.items()):
+        if info.get("status") in _IN_PROGRESS_STATES:
+            if index_exists(doc_id):
+                info["status"] = "ready"
+                info["status_message"] = info.get("status_message") or "✅ Document ready."
+                recovered.append(doc_id)
+            else:
+                del _doc_registry[doc_id]
+                removed.append(doc_id)
+    if removed or recovered:
+        _save_registry()
+        logger.info(
+            f"Registry cleanup: removed {len(removed)} orphaned entries, "
+            f"recovered {len(recovered)} interrupted-but-indexed docs."
+        )
+
+
 _load_registry()
+_cleanup_orphaned_entries()
 
 
 def get_doc_info(doc_id: str) -> Optional[Dict[str, Any]]:
@@ -59,7 +102,9 @@ def get_doc_info(doc_id: str) -> Optional[Dict[str, Any]]:
 
 
 def get_all_docs() -> List[Dict[str, Any]]:
-    _load_registry()
+    # Serve from the in-memory registry, which is kept current on every write.
+    # Re-reading the file on every poll previously swapped the dict object, which
+    # left upload placeholders (`pending_*`) uncleaned — i.e. the ghost entries.
     return list(_doc_registry.values())
 
 
@@ -229,22 +274,7 @@ Remember: Answer ONLY based on the context above. Use inline parenthetical refer
         # Send sources first
         yield f"data: {json.dumps({'type': 'sources', 'sources': sources_used})}\n\n"
 
-        # Stream Gemini response in a thread (sync SDK)
-        def _stream_gemini():
-            curr_client = genai.Client(api_key=cfg.GEMINI_API_KEY)
-            stream = curr_client.models.generate_content_stream(
-                model=cfg.CHAT_MODEL,
-                contents=full_prompt,
-                config=genai.types.GenerateContentConfig(
-                    temperature=0.0,          # Deterministic for grounded answers
-                    max_output_tokens=cfg.MAX_TOKENS_ANSWER,
-                ),
-            )
-            for chunk in stream:
-                if chunk.text:
-                    yield chunk.text
-
-        # Run streaming in thread executor and yield tokens
+        # Run Gemini streaming (sync SDK) in a thread executor and yield tokens
         loop = asyncio.get_event_loop()
         queue: asyncio.Queue = asyncio.Queue()
         _done_sentinel = object()

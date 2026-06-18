@@ -192,7 +192,7 @@ async function saveSettings() {
     const res = await fetch(`${API_BASE}/settings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ openai_api_key: key }),
+      body: JSON.stringify({ gemini_api_key: key }),
     });
 
     if (!res.ok) {

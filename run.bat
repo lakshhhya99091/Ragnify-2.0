@@ -5,7 +5,7 @@ color 0B
 echo.
 echo  ╔══════════════════════════════════════════════════════════════╗
 echo  ║          Ragnify — AI Document Intelligence                 ║
-echo  ║              Powered by GPT-4o + FAISS + RAG               ║
+echo  ║              Powered by Gemini + FAISS + RAG              ║
 echo  ╚══════════════════════════════════════════════════════════════╝
 echo.
 
