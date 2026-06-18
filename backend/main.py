@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 # ── FastAPI App ───────────────────────────────────────────────────────────────
 app = FastAPI(
     title="Ragnify — Smart Document Intelligence",
-    version="2.0.0",
+    version="2.1.0",
     description="RAG-powered document intelligence for professionals — powered by Gemini and FAISS",
 )
 
@@ -327,7 +327,7 @@ async def delete_document(doc_id: str):
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "service": "Ragnify"}
+    return {"status": "healthy", "service": "Ragnify", "version": app.version}
 
 
 # ── Entry Point ───────────────────────────────────────────────────────────────
