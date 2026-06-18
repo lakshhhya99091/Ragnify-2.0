@@ -2,17 +2,16 @@ services:
   - type: web
     name: ragnify
     runtime: python
+    plan: free
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
     envVars:
       - key: GEMINI_API_KEY
         sync: false          # Set this manually in the Render dashboard
-      - key: DATA_DIR
-        value: /data/indexes
-      - key: UPLOAD_DIR
-        value: /data/uploads
-    disk:
-      name: ragnify-persistent-data
-      mountPath: /data
-      sizeGB: 1
+    # NOTE: Free tier does not support persistent disks, so none is configured.
+    # The app falls back to ephemeral storage inside the container for uploads
+    # and FAISS indexes — these reset on every restart/redeploy (fine for demos).
+    # To make data persistent, upgrade the plan and add a disk mounted at /data
+    # plus env vars DATA_DIR=/data/indexes and UPLOAD_DIR=/data/uploads.
