@@ -17,6 +17,7 @@ let state = {
   chatHistory: {},       // doc_id → [ {role, content, sources} ]
   isStreaming: false,
   pollingIntervals: {},  // temp_token → intervalId
+  currentBidType: null,  // 'tender' | 'asset' for the open bid modal
 };
 
 // ── DOM References ────────────────────────────────────────────────────────
@@ -61,6 +62,14 @@ const settingsSave     = $('#settingsSave');
 const newApiKey        = $('#newApiKey');
 const currentKeyDisplay = $('#currentKeyDisplay');
 const settingsAlert    = $('#settingsAlert');
+const bidActions       = $('#bidActions');
+const tenderBtn        = $('#tenderBtn');
+const assetBtn         = $('#assetBtn');
+const bidModal         = $('#bidModal');
+const bidModalTitle    = $('#bidModalTitle');
+const bidBody          = $('#bidBody');
+const bidClose         = $('#bidClose');
+const bidDownloadBtn   = $('#bidDownloadBtn');
 
 // ── Initialization ────────────────────────────────────────────────────────
 async function init() {
@@ -148,6 +157,18 @@ function bindEvents() {
   settingsModal.addEventListener('click', (e) => {
     if (e.target === settingsModal) closeSettings();
   });
+
+  // Bid details modal (Tender / Asset)
+  tenderBtn.addEventListener('click', () => openBidModal('tender'));
+  assetBtn.addEventListener('click', () => openBidModal('asset'));
+  bidClose.addEventListener('click', closeBidModal);
+  bidDownloadBtn.addEventListener('click', downloadBidExcel);
+  bidModal.addEventListener('click', (e) => {
+    if (e.target === bidModal) closeBidModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && bidModal.style.display === 'flex') closeBidModal();
+  });
 }
 
 // ── Settings Modal ────────────────────────────────────────────────────────
@@ -224,6 +245,84 @@ function showSettingsAlert(msg, type) {
   settingsAlert.textContent = msg;
   settingsAlert.className = `settings-alert ${type}`;
   settingsAlert.style.display = 'block';
+}
+
+// ── Bid Details Modal (Tender / Asset) ─────────────────────────────────────
+async function openBidModal(type) {
+  if (!state.currentDocId) return;
+  state.currentBidType = type;
+  const docId = state.currentDocId;
+
+  bidModalTitle.textContent = type === 'tender' ? '📋 Tender Details' : '📦 Asset Details';
+  bidBody.innerHTML = '<div class="bid-loading">Loading…</div>';
+  bidModal.style.display = 'flex';
+
+  try {
+    const res = await fetch(`${API_BASE}/documents/${docId}/${type}-details`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Could not load details');
+    }
+    const data = await res.json();
+    bidBody.innerHTML = type === 'tender' ? renderTenderTable(data) : renderAssetTable(data);
+  } catch (err) {
+    bidBody.innerHTML = `<div class="bid-error">❌ ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function closeBidModal() {
+  bidModal.style.display = 'none';
+  bidBody.innerHTML = '';
+}
+
+function downloadBidExcel() {
+  if (!state.currentDocId || !state.currentBidType) return;
+  window.open(`${API_BASE}/documents/${state.currentDocId}/${state.currentBidType}-details.xlsx`, '_blank');
+}
+
+function renderTenderTable(data) {
+  const rows = (data.rows || []).map(r => `
+    <tr>
+      <td class="bid-key">${escapeHtml(r.label)}</td>
+      <td class="bid-val ${r.value === 'NA' ? 'bid-na' : ''}">${escapeHtml(r.value)}</td>
+    </tr>`).join('');
+  return `
+    <table class="bid-table">
+      <thead><tr><th>Field</th><th>Value</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function renderAssetTable(data) {
+  const assets = data.assets || [];
+  if (assets.length === 0) {
+    return `<div class="bid-empty">
+      📭 No asset details were found in the document or its accessible linked sources.
+      <span>Linked GeM files (Scope of Work / Product lists) often require login, which blocks crawling.</span>
+    </div>`;
+  }
+  const rows = assets.map((a, i) => {
+    const srcs = (a.sources || [])
+      .map(s => `<span class="bid-src">${escapeHtml(s.source)}: <b>${s.quantity}</b></span>`)
+      .join('');
+    return `
+      <tr>
+        <td class="bid-srno">${i + 1}</td>
+        <td class="bid-desc">${escapeHtml(a.description)}</td>
+        <td class="bid-qty">${a.quantity}</td>
+        <td class="bid-sources">${srcs || '—'}</td>
+      </tr>`;
+  }).join('');
+  return `
+    <table class="bid-table bid-asset-table">
+      <thead><tr><th>Sr.</th><th>Service Description</th><th>Qty</th><th>Sources</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr>
+        <td colspan="2" class="bid-total-label">GRAND TOTAL</td>
+        <td class="bid-qty">${data.grand_total ?? 0}</td>
+        <td></td>
+      </tr></tfoot>
+    </table>`;
 }
 
 
@@ -573,6 +672,9 @@ function selectDocument(docId) {
   chatDocName.textContent = doc.filename;
   chatDocMeta.textContent = `${doc.num_chunks || 0} chunks indexed · ${doc.num_links || 0} hyperlinks · ${doc.num_crawled || 0} pages crawled`;
   chatDocIcon.textContent = getDocIcon(doc.filename);
+
+  // Show the Tender/Asset buttons only for detected tenders/bids
+  bidActions.style.display = doc.is_bid ? 'flex' : 'none';
 
   // Show chat screen
   welcomeScreen.style.display = 'none';

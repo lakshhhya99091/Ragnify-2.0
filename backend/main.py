@@ -9,7 +9,7 @@ from pathlib import Path
 import aiofiles
 from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.responses import StreamingResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -21,6 +21,8 @@ from rag_engine import (
     get_all_docs,
 )
 from vector_store import delete_index
+from extractor import load_extraction, tender_rows
+from excel_export import build_tender_xlsx, build_asset_xlsx, safe_filename
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -231,6 +233,71 @@ async def chat(req: QuestionRequest):
             "Cache-Control": "no-cache",
             "X-Accel-Buffering": "no",
         },
+    )
+
+
+# ── Bid extraction: tender & asset details ──────────────────────────────────────
+
+def _require_extraction(doc_id: str):
+    """Return (doc_info, extraction) or raise 404 if missing/not a bid."""
+    info = get_doc_info(doc_id)
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
+    data = load_extraction(doc_id)
+    if not data:
+        raise HTTPException(
+            status_code=404,
+            detail="No tender/asset extraction is available for this document.",
+        )
+    return info, data
+
+
+_XLSX_MEDIA = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+@app.get("/documents/{doc_id}/tender-details")
+async def tender_details(doc_id: str):
+    """Extracted tender details as ordered label/value rows."""
+    info, data = _require_extraction(doc_id)
+    rows = [{"label": label, "value": value} for label, value in tender_rows(data)]
+    return {"doc_id": doc_id, "filename": info.get("filename"), "rows": rows}
+
+
+@app.get("/documents/{doc_id}/asset-details")
+async def asset_details(doc_id: str):
+    """Extracted, cross-source-aggregated asset list with a grand total."""
+    info, data = _require_extraction(doc_id)
+    assets = data.get("asset_details", []) or []
+    grand_total = sum(int(a.get("quantity", 0) or 0) for a in assets)
+    return {
+        "doc_id": doc_id,
+        "filename": info.get("filename"),
+        "assets": assets,
+        "grand_total": grand_total,
+    }
+
+
+@app.get("/documents/{doc_id}/tender-details.xlsx")
+async def tender_details_xlsx(doc_id: str):
+    info, data = _require_extraction(doc_id)
+    content = build_tender_xlsx(data)
+    fname = safe_filename(info.get("filename", "document"), "tender_details")
+    return Response(
+        content=content,
+        media_type=_XLSX_MEDIA,
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
+
+
+@app.get("/documents/{doc_id}/asset-details.xlsx")
+async def asset_details_xlsx(doc_id: str):
+    info, data = _require_extraction(doc_id)
+    content = build_asset_xlsx(data)
+    fname = safe_filename(info.get("filename", "document"), "asset_details")
+    return Response(
+        content=content,
+        media_type=_XLSX_MEDIA,
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
     )
 
 

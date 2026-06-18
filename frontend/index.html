@@ -141,6 +141,22 @@
       </div>
     </div>
 
+    <!-- Bid Details Modal (Tender / Asset) -->
+    <div class="bid-modal" id="bidModal" style="display:none" role="dialog" aria-label="Bid details" aria-modal="true">
+      <div class="bid-card">
+        <div class="bid-header">
+          <h3 id="bidModalTitle">Tender Details</h3>
+          <div class="bid-header-actions">
+            <button class="bid-download" id="bidDownloadBtn" title="Download as Excel">⬇ Download Excel</button>
+            <button class="bid-close" id="bidClose" aria-label="Close">×</button>
+          </div>
+        </div>
+        <div class="bid-body" id="bidBody">
+          <!-- table injected by JS -->
+        </div>
+      </div>
+    </div>
+
     <!-- ── Main Panel ───────────────────────────────────────────────────── -->
     <main class="main-panel" id="mainPanel" role="main">
 
@@ -211,6 +227,14 @@
             </div>
           </div>
           <div class="chat-header-actions">
+            <div class="bid-actions" id="bidActions" style="display:none">
+              <button class="header-btn bid-btn" id="tenderBtn" title="View & export tender details">
+                📋 Tender Details
+              </button>
+              <button class="header-btn bid-btn" id="assetBtn" title="View & export asset details">
+                📦 Asset Details
+              </button>
+            </div>
             <button class="header-btn" id="clearChatBtn" title="Clear chat" aria-label="Clear chat history">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>

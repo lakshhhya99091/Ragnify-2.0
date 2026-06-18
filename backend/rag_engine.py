@@ -17,6 +17,7 @@ from crawler import crawl_urls
 from chunker import chunk_all_sources
 from embedder import embed_texts, embed_query
 from vector_store import build_index, search, index_exists, list_indexes
+from extractor import detect_bid, run_extraction, save_extraction
 
 logger = logging.getLogger(__name__)
 
@@ -185,6 +186,26 @@ async def process_document(
         _update("🔍 Building FAISS vector index...", "indexing")
         await loop.run_in_executor(None, build_index, doc_id, embeddings, chunks)
 
+        # ── Step 6: Bid/Tender extraction (only for detected tenders) ───────
+        # Grounded extraction over the full document + crawled content, with
+        # cross-source quantity aggregation. Failures here never fail ingestion.
+        is_bid = False
+        try:
+            full_text = "\n".join(t for _, t in all_sources)
+            if detect_bid(full_text):
+                _update("📑 Extracting tender & asset details...", "indexing")
+                extraction = await loop.run_in_executor(
+                    None, run_extraction, all_sources, original_filename
+                )
+                await loop.run_in_executor(None, save_extraction, doc_id, extraction)
+                is_bid = True
+                _update(
+                    f"✓ Tender detected — extracted {len(extraction.get('asset_details', []))} asset rows",
+                    "indexing",
+                )
+        except Exception as ex:
+            logger.warning(f"[{doc_id}] Bid extraction skipped: {ex}")
+
         _doc_registry[doc_id].update({
             "doc_id":        doc_id,
             "filename":      original_filename,
@@ -194,6 +215,7 @@ async def process_document(
             "num_links":     len(links),
             "num_crawled":   len(crawled_sources),
             "file_path":     file_path,
+            "is_bid":        is_bid,
         })
         _save_registry()
         _update(f"✅ Document ready! {len(chunks)} chunks indexed.", "ready")
