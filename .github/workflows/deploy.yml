@@ -1,0 +1,30 @@
+name: Deploy to Render
+
+# Triggers a Render deploy on every push to main by calling a Render Deploy Hook.
+# This works regardless of whether the Render service is connected to GitHub via
+# the GitHub App, so it reliably auto-deploys even for API-created services.
+#
+# One-time setup (repo Settings → Secrets and variables → Actions → New secret):
+#   Name:  RENDER_DEPLOY_HOOK
+#   Value: the Deploy Hook URL from Render (Service → Settings → Deploy Hook)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}   # allows manual "Run workflow" from the Actions tab
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::warning::RENDER_DEPLOY_HOOK secret is not set — skipping deploy."
+            echo "Add it under repo Settings → Secrets and variables → Actions."
+            exit 0
+          fi
+          echo "Triggering Render deploy..."
+          curl -fsSL -X POST "$HOOK" && echo "" && echo "✅ Render deploy triggered."
