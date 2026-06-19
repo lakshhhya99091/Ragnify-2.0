@@ -163,14 +163,20 @@ async def process_document(
                 crawled_sources.append((source_label, text))
             _update(f"✓ Crawled {len(crawled_sources)} URLs successfully", "crawling")
 
-        # Combine document + crawled content
+        # Combine document + crawled content. all_sources keeps the FULL text and
+        # is what tender/asset extraction reads later (Step 6).
         all_sources = text_by_source + crawled_sources
         total_chars = sum(len(t) for _, t in all_sources)
         _update(f"📊 Total content: {total_chars:,} chars from {len(all_sources)} sources", "indexing")
 
         # ── Step 3: Chunk ──────────────────────────────────────────────────
+        # For embedding/chat search we cap each crawled source so a few huge linked
+        # PDFs don't flood the free-tier embedding limit (which made ingestion crawl).
+        # Extraction still uses the full text above, so asset/tender detail is intact.
         _update("✂️ Creating text chunks...", "indexing")
-        chunks = await loop.run_in_executor(None, chunk_all_sources, all_sources, doc_id)
+        _EMBED_SOURCE_CAP = 20000
+        embed_sources = text_by_source + [(lbl, txt[:_EMBED_SOURCE_CAP]) for lbl, txt in crawled_sources]
+        chunks = await loop.run_in_executor(None, chunk_all_sources, embed_sources, doc_id)
         _update(f"✓ Created {len(chunks)} chunks", "indexing")
 
         if not chunks:

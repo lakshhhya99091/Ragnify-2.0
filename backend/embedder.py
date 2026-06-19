@@ -75,9 +75,11 @@ def _cache_key(text: str, task_type: str) -> str:
     return f"{EMBEDDING_MODEL}|{task_type}|{h}"
 
 
-# Gemini embedding accepts up to 100 texts per call → fewer round-trips = faster.
-_GEMINI_BATCH_SIZE = 100
-_INTER_BATCH_DELAY = 1.0   # small free-tier-friendly pause between batches
+# Keep batches small: the free tier rejects requests that pack too many tokens
+# into one call (large tender chunks blow past the per-request limit at size 100).
+# 20 is the proven-safe value; spacing stays within the ~15 RPM free-tier limit.
+_GEMINI_BATCH_SIZE = 20
+_INTER_BATCH_DELAY = 3.0   # seconds between batches (free-tier friendly)
 
 
 def _embed_batch_gemini(texts: List[str], task_type: str) -> List[List[float]]:
