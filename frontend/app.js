@@ -497,14 +497,6 @@ function startPolling(tempToken, filename) {
       const docs = await (await fetch(`${API_BASE}/documents`)).json();
       const allDocs = docs.documents || [];
 
-      // Find the newest ready doc that matches our file
-      let found = null;
-      for (const doc of allDocs) {
-        if (doc.filename === filename && doc.status !== 'error') {
-          found = doc;
-        }
-      }
-
       // Also look for temp token
       const pending = allDocs.find(d => d.doc_id === tempToken);
       if (pending && pending.status !== 'ready') {
@@ -532,12 +524,15 @@ function startPolling(tempToken, filename) {
         }, 1200);
       }
 
-      // Handle error
-      if (found && found.status === 'error') {
+      // Handle error (a doc with this filename failed during processing)
+      const errorDoc = allDocs.find(d => d.filename === filename && d.status === 'error');
+      if (errorDoc) {
         clearInterval(interval);
+        delete state.pollingIntervals[tempToken];
         hideProcessingOverlay();
-        showToast(`Error processing "${filename}": ${found.status_message}`, 'error');
+        showToast(`Error processing "${filename}": ${errorDoc.status_message || 'Processing failed'}`, 'error');
         loadDocuments();
+        return;
       }
 
     } catch (err) {

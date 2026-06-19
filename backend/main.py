@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 # ── FastAPI App ───────────────────────────────────────────────────────────────
 app = FastAPI(
     title="Ragnify — Smart Document Intelligence",
-    version="2.2.2",
+    version="2.2.3",
     description="RAG-powered document intelligence for professionals — powered by Gemini and FAISS",
 )
 
@@ -169,10 +169,10 @@ async def upload_document(
                 _save_registry()
             logger.info(f"Processing complete: {doc_id}")
         except Exception as e:
-            # Update placeholder to error state
+            # process_document already recorded the failure under its own doc_id,
+            # so just drop the placeholder to avoid a duplicate error row.
             if temp_token in _doc_registry:
-                _doc_registry[temp_token]["status"] = "error"
-                _doc_registry[temp_token]["status_message"] = f"❌ {str(e)}"
+                del _doc_registry[temp_token]
                 _save_registry()
             logger.exception(f"Processing failed: {e}")
 
