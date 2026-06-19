@@ -11,7 +11,6 @@ Returns: {
   "tables": [(label, table_text), ...]
 }
 """
-import os
 import re
 import logging
 from pathlib import Path
@@ -204,33 +203,65 @@ def parse_docx(file_path: str) -> Dict:
 # Image Parser — OCR
 # ─────────────────────────────────────────────────────────────────────────────
 def parse_image(file_path: str) -> Dict:
-    """Run OCR on an image file and extract text."""
+    """Extract text from an image using Gemini's vision capability.
+    No local OCR binary (Tesseract) required — works identically on a laptop and
+    on the server, since it only needs the Gemini API key."""
+    import io
+    import time
     try:
-        import pytesseract
         from PIL import Image
     except ImportError:
-        raise RuntimeError("pytesseract/Pillow not installed")
+        raise RuntimeError("Pillow not installed")
+    from google import genai
+    from google.genai import types
+    import config as cfg
 
-    tesseract_paths = [
-        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
-        r"C:\Users\Bhavya Jain\Desktop\tesseract.exe",
-        "tesseract",
-    ]
-    for path in tesseract_paths:
-        if os.path.exists(path):
-            pytesseract.pytesseract.tesseract_cmd = path
-            break
-
+    # Normalise any format (PNG/JPG/BMP/TIFF/…) to PNG bytes that Gemini accepts.
     img = Image.open(file_path)
-    text = pytesseract.image_to_string(img, config="--psm 3")
+    if img.mode not in ("RGB", "L"):
+        img = img.convert("RGB")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    png_bytes = buf.getvalue()
+
+    client = genai.Client(
+        api_key=cfg.GEMINI_API_KEY,
+        http_options=types.HttpOptions(timeout=120_000),
+    )
+    prompt = (
+        "Extract ALL text from this image exactly as it appears. Preserve numbers, "
+        "dates, tables and the reading order, as plain text. Do not add any "
+        "commentary or explanation. If the image contains no readable text, reply "
+        "with nothing."
+    )
+
+    text = ""
+    for attempt in range(4):
+        try:
+            resp = client.models.generate_content(
+                model=cfg.CHAT_MODEL,
+                contents=[
+                    types.Part.from_bytes(data=png_bytes, mime_type="image/png"),
+                    prompt,
+                ],
+            )
+            text = (resp.text or "").strip()
+            break
+        except Exception as e:
+            transient = any(s in str(e) for s in
+                            ("503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED", "500", "INTERNAL"))
+            if transient and attempt < 3:
+                time.sleep(min(5 * (2 ** attempt), 60))
+            else:
+                raise RuntimeError(f"Image text extraction failed: {e}")
 
     links: List[str] = []
     url_pattern = re.compile(r'https?://[^\s<>"{}|\\^`\[\]]+')
     links.extend(url_pattern.findall(text))
 
     doc_type = _detect_doc_type(text)
-    text_by_source = [("Image (OCR)", text)] if text.strip() else []
-    logger.info(f"Image OCR: {len(text.split())} words, type={doc_type}")
+    text_by_source = [("Image", text)] if text.strip() else []
+    logger.info(f"Image read via Gemini vision: {len(text.split())} words, type={doc_type}")
     return {
         "text_by_source": text_by_source,
         "tables": [],

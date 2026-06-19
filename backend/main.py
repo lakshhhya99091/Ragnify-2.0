@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 # ── FastAPI App ───────────────────────────────────────────────────────────────
 app = FastAPI(
     title="Ragnify — Smart Document Intelligence",
-    version="2.2.3",
+    version="2.3.0",
     description="RAG-powered document intelligence for professionals — powered by Gemini and FAISS",
 )
 
