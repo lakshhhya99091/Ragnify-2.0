@@ -23,7 +23,10 @@ if not _env_key and os.path.exists(ENV_FILE):
                 _env_key = _line.split("=", 1)[1].strip().strip('"').strip("'")
                 break
 
-GEMINI_API_KEY = _env_key or "AIzaSyAD8q7stG0X7lYeZipZDFZ6eXJJwEQhMj8"
+# Resolved from env var or the project-root .env (set locally or via the in-app
+# Settings modal). No key is hardcoded here — a literal key in source would be
+# exposed in the public repo. If unset, configure it via .env or Settings.
+GEMINI_API_KEY = _env_key or ""
 
 # ── Models ────────────────────────────────────────────────────────────────────
 EMBEDDING_MODEL = "gemini-embedding-001"    # 3072-dim, best quality

@@ -141,7 +141,7 @@ async def process_document(
             status_callback(doc_id, stage, msg)
 
     try:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         # ── Step 1: Parse ──────────────────────────────────────────────────
         _update("📄 Parsing document...", "parsing")
@@ -297,13 +297,16 @@ Remember: Answer ONLY based on the context above. Use inline parenthetical refer
         yield f"data: {json.dumps({'type': 'sources', 'sources': sources_used})}\n\n"
 
         # Run Gemini streaming (sync SDK) in a thread executor and yield tokens
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         queue: asyncio.Queue = asyncio.Queue()
         _done_sentinel = object()
 
         def _producer():
             try:
-                curr_client = genai.Client(api_key=cfg.GEMINI_API_KEY)
+                curr_client = genai.Client(
+                    api_key=cfg.GEMINI_API_KEY,
+                    http_options=genai.types.HttpOptions(timeout=300_000),  # 5 min ceiling
+                )
                 stream = curr_client.models.generate_content_stream(
                     model=cfg.CHAT_MODEL,
                     contents=full_prompt,

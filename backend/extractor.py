@@ -13,10 +13,12 @@ import json
 import logging
 import os
 import re
+import time
 from typing import Any, Dict, List, Tuple
 from urllib.parse import urlparse
 
 from google import genai
+from google.genai import types
 
 from config import DATA_DIR
 
@@ -80,7 +82,7 @@ def _friendly_source(label: str) -> str:
     return f"Main document ({label})"
 
 
-def _build_sources_block(all_sources: List[Tuple[str, str]], max_chars: int = 300_000) -> str:
+def _build_sources_block(all_sources: List[Tuple[str, str]], max_chars: int = 500_000) -> str:
     """Concatenate (label, text) pairs into labelled blocks, capped in size."""
     parts, total = [], 0
     for label, text in all_sources:
@@ -120,6 +122,9 @@ TENDER_DETAILS — include every one of these keys (value = string, or "NA" if n
 ASSET_DETAILS rules:
   - List every distinct product / equipment / service that has a quantity
     (e.g., Desktop PC, Laptop, Printer, Scanner, Multifunction Printer, UPS, AIO PC).
+  - IMPORTANT: search ALL sources thoroughly, ESPECIALLY linked RFP / Scope of Work /
+    BOQ / Annexure / price-bid / "list of equipment" documents — the itemised list with
+    quantities is usually given there as a table (e.g. Sr.No | Item | Qty). Extract every row.
   - Put brand/model in "description" when the document specifies it (e.g., "Dell Latitude 5520 Laptop").
   - AGGREGATE: if the SAME item/model appears in multiple SOURCES, SUM into ONE row and
     list each contributing source with its own quantity under "sources". "quantity" is the total.
@@ -196,16 +201,35 @@ def run_extraction(all_sources: List[Tuple[str, str]], filename: str) -> Dict[st
     sources_block = _build_sources_block(all_sources)
     prompt = _build_prompt(sources_block, filename)
 
-    client = genai.Client(api_key=cfg.GEMINI_API_KEY)
-    resp = client.models.generate_content(
-        model=cfg.CHAT_MODEL,
-        contents=prompt,
-        config=genai.types.GenerateContentConfig(
-            temperature=0.0,
-            max_output_tokens=8192,
-            response_mime_type="application/json",
-        ),
+    client = genai.Client(
+        api_key=cfg.GEMINI_API_KEY,
+        http_options=types.HttpOptions(timeout=180_000),  # 3 min ceiling for large contexts
     )
+    gen_config = genai.types.GenerateContentConfig(
+        temperature=0.0,
+        max_output_tokens=8192,
+        response_mime_type="application/json",
+    )
+
+    # Retry on transient model errors (free tier returns 503/429 under load).
+    resp = None
+    max_attempts = 4
+    for attempt in range(max_attempts):
+        try:
+            resp = client.models.generate_content(
+                model=cfg.CHAT_MODEL, contents=prompt, config=gen_config
+            )
+            break
+        except Exception as e:
+            transient = any(s in str(e) for s in
+                            ("503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED", "500", "INTERNAL"))
+            if transient and attempt < max_attempts - 1:
+                wait = min(5 * (2 ** attempt), 60)
+                logger.warning(f"Extraction model busy ({e}); retry {attempt+1}/{max_attempts} in {wait}s...")
+                time.sleep(wait)
+            else:
+                raise
+
     data = _parse_response(resp.text)
     result = _normalize(data)
     result["filename"] = filename

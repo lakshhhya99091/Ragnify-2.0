@@ -4,6 +4,7 @@ Returns cleaned text chunks tagged with their source URL.
 Enhanced: PDF download support, retry logic, broader domain coverage.
 """
 import asyncio
+import hashlib
 import logging
 import re
 from typing import List, Tuple, Optional
@@ -150,8 +151,9 @@ def _extract_pdf_text(pdf_bytes: bytes, url: str) -> Optional[str]:
 
         if text_parts:
             full_text = "\n\n".join(text_parts)
-            # Cap linked PDFs at 20000 chars
-            return full_text[:20000]
+            # Cap linked PDFs at 60000 chars so long RFP annexures / BOQ tables
+            # (often near the end of the document) are captured, not truncated.
+            return full_text[:60000]
         return None
     except Exception as e:
         logger.warning(f"Failed to parse linked PDF from {url}: {e}")
@@ -274,14 +276,21 @@ async def _crawl_all_async(urls: List[str]) -> List[Tuple[str, str]]:
         max_connections=MAX_CRAWL_WORKERS,
         max_keepalive_connections=MAX_CRAWL_WORKERS,
     )
+    seen_content = set()  # content hashes, to skip identical docs fetched via different URLs
     async with httpx.AsyncClient(limits=limits, verify=False) as client:
         tasks = [_fetch_one(client, url, pdf_count) for url in urls]
         responses = await asyncio.gather(*tasks, return_exceptions=True)
         for resp in responses:
             if isinstance(resp, tuple):
                 url, text = resp
-                if text:
-                    results.append((url, text))
+                if not text:
+                    continue
+                chash = hashlib.md5(text.encode("utf-8", "ignore")).hexdigest()
+                if chash in seen_content:
+                    logger.info(f"Skipped {url} (identical content already crawled)")
+                    continue
+                seen_content.add(chash)
+                results.append((url, text))
             elif isinstance(resp, Exception):
                 logger.warning(f"Crawl task exception: {resp}")
     return results
