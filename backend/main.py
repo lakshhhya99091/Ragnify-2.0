@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 # ── FastAPI App ───────────────────────────────────────────────────────────────
 app = FastAPI(
     title="Ragnify — Smart Document Intelligence",
-    version="2.2.0",
+    version="2.2.1",
     description="RAG-powered document intelligence for professionals — powered by Gemini and FAISS",
 )
 
@@ -88,11 +88,13 @@ async def update_settings(req: SettingsRequest):
     import config as cfg_module
 
     new_key = req.gemini_api_key.strip()
-    if not new_key.startswith("AIza") and not new_key.startswith("sk-"):
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid API key format (Gemini keys start with 'AIza', OpenAI with 'sk-')"
-        )
+    # Light sanity check only. Gemini key formats change over time — both the
+    # older "AIza…" and the newer "AQ.…" keys are valid — so we do NOT hard-reject
+    # by prefix (that previously blocked valid new-format keys).
+    if len(new_key) < 20 or any(c.isspace() for c in new_key):
+        raise HTTPException(status_code=400, detail="That doesn't look like a valid API key.")
+
+    is_openai = new_key.startswith("sk-")  # everything else is treated as a Gemini key
 
     # Update runtime config
     cfg_module.GEMINI_API_KEY = new_key
@@ -102,16 +104,13 @@ async def update_settings(req: SettingsRequest):
     from config import ENV_FILE
     os.makedirs(os.path.dirname(ENV_FILE), exist_ok=True)
     with open(ENV_FILE, "w") as f:
-        if new_key.startswith("AIza"):
-            f.write(f'GEMINI_API_KEY="{new_key}"\n')
-        else:
-            f.write(f'OPENAI_API_KEY="{new_key}"\n')
+        f.write(f'{"OPENAI_API_KEY" if is_openai else "GEMINI_API_KEY"}="{new_key}"\n')
 
     logger.info(f"API key updated: {new_key[:8]}...")
     return {
         "message": "API key updated successfully",
         "api_key_masked": new_key[:8] + "..." + new_key[-4:],
-        "provider": "Google Gemini" if new_key.startswith("AIza") else "OpenAI"
+        "provider": "OpenAI" if is_openai else "Google Gemini",
     }
 
 

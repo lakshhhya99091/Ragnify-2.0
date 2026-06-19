@@ -201,8 +201,8 @@ async function saveSettings() {
     showSettingsAlert('Please enter an API key.', 'error');
     return;
   }
-  if (!key.startsWith('sk-') && !key.startsWith('AIza')) {
-    showSettingsAlert('Invalid key. Gemini keys start with "AIza", OpenAI keys with "sk-".', 'error');
+  if (key.length < 20 || /\s/.test(key)) {
+    showSettingsAlert("That doesn't look like a valid API key.", 'error');
     return;
   }
 
