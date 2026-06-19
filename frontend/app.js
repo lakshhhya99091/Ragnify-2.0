@@ -670,7 +670,7 @@ function selectDocument(docId) {
 
   // Update chat header
   chatDocName.textContent = doc.filename;
-  chatDocMeta.textContent = `${doc.num_chunks || 0} chunks indexed · ${doc.num_links || 0} hyperlinks · ${doc.num_crawled || 0} pages crawled`;
+  chatDocMeta.textContent = `${doc.num_chunks || 0} chunks indexed · ${doc.num_links || 0} links found · ${doc.num_crawled || 0} unique links read`;
   chatDocIcon.textContent = getDocIcon(doc.filename);
 
   // Show the Tender/Asset buttons only for detected tenders/bids
